@@ -77,6 +77,15 @@ class Time_Dict(TypedDict):
 class Vehicle_Dict(TypedDict):
 	time: Time_Dict
 
+class Data(TypedDict):
+	time: int
+	ego_road: string
+	ego_lane: string
+	ego_waypoint_index: string
+	vehicle_road: string
+	vehicle_lane: string
+	vehicle_waypoint_index: string
+
 
 
 
@@ -173,7 +182,7 @@ class NineBlockAnalyzer(BaseAnalyzer):
             data_dict[road_name] = road_dict
         return data_dict
 
-    def get_nine_block_data(self, measurement: string, road_data_dict: Road_Dict, vehicles: List[str]):
+    def get_nine_block_data(self, measurement: string, road_data_dict: Data_Dict, vehicles: List[str]) -> Vehicle_Dict:
         vehicle_dict = {}
         for vehicle in vehicles:
             if vehicle == "ego":
@@ -201,12 +210,12 @@ class NineBlockAnalyzer(BaseAnalyzer):
                     time_dict = {}
                     vehicle_dict[time] = time_dict
 
-                ego_road = data[col_ego_road]
-                ego_lane = data[col_ego_lane]
-                ego_index = data[col_ego_waypoint_index]
-                obs_road = data[col_obs_road]
-                obs_lane = data[col_obs_lane]
-                obs_index = data[col_obs_waypoint_index]
+                ego_road: str = data[col_ego_road]
+                ego_lane: str = data[col_ego_lane]
+                ego_index: str = data[col_ego_waypoint_index]
+                obs_road: str = data[col_obs_road]
+                obs_lane: str = data[col_obs_lane]
+                obs_index: str = data[col_obs_waypoint_index]
 
                 if not self.direction_check(ego_lane, obs_lane):
                     # 進行方向が逆のため、評価不要
