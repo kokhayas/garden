@@ -1,7 +1,95 @@
+import string
+from dataclasses import dataclass
+from enum import Enum
+from typing import List, NewType, Optional, TypedDict, Union
+
 from base_analayzer import BaseAnalyzer
 from datas.lane_data import *
-from utils.scanner import Scanner
 from utils.rdf_graph_creator import RdfGraphCreator
+from utils.scanner import Scanner
+
+
+class ImportedData(TypedDict):
+	measurement: string
+	mapid: int
+	imported_data_id: int
+	status: int
+
+
+
+class Connection(TypedDict):
+	type: string # type takes string "successor" or "predecessor"
+	road: string
+	lane: string
+
+class Point(TypedDict):
+	x: float
+	y: float
+	z: float
+	roll: float
+	pitch: float
+	yaw: float
+
+class Waypoint_(TypedDict):
+	index: int
+	point: Point
+
+
+class Lane(TypedDict):
+	name: string
+	width: int
+	connection: List[Connection]
+	waypoints: List[Waypoint_]
+
+class Road(TypedDict):
+	name: string
+	lanes: List[Lane]
+
+class WaypointData(TypedDict):
+	gid: string
+	direction: string  # "left" or "right"
+	roads: List[Road]
+
+
+class _Type(TypedDict):
+	road: string
+	lane: string
+
+class Lane_Dict(TypedDict):
+	successor: _Type
+	predecessor: _Type
+
+class Road_Dict(TypedDict):
+	index: int
+	lane_name: Lane_Dict
+
+class Data_Dict(TypedDict):
+	road_name: Road_Dict
+
+
+class _Vehicle(TypedDict):
+	direction: string
+	position: int
+
+class Time_Dict(TypedDict):
+	vehicle: _Vehicle
+
+class Vehicle_Dict(TypedDict):
+	time: Time_Dict
+
+
+
+
+
+
+from datas.behaivor_type import BehaviorType
+from datas.direction_type import DirectionType
+from datas.lane_data import *
+from datas.roadgeometry_type import RoadGeometryType
+from datas.scenario_schema import ScenarioSchema
+from datas.scene_type import SceneType
+from datas.surrounding_vehicle_motion_type import SurroundingVehicleMotionType
+from datas.waypoint import Waypoint
 
 
 class NineBlockAnalyzer(BaseAnalyzer):
@@ -49,22 +137,22 @@ class NineBlockAnalyzer(BaseAnalyzer):
             return True
         return False
 
-    def get_road_info(self, waypoint_data):
+    def get_road_info(self, waypoint_data: WaypointData):
         # 右側通行、左側通行を特定
-        direction = waypoint_data['direction']
+        direction: string = waypoint_data['direction']
 
-        data_dict = {}
+        data_dict: Data_Dict = {}
         for road in waypoint_data['roads']:
-            road_dict = {}
-            road_name = road['name']
+            road_dict: Road_Dict = {}
+            road_name: string = road['name']
             index = None
             for lane in road['lanes']:
                 # RoadのIndex数を取得
                 if index is None:
                     index = len(lane['waypoints'])
 
-                lane_dict = {}
-                lane_name = lane['name']
+                lane_dict: Lane_Dict = {}
+                lane_name: string = lane['name']
                 if (direction == 'left' and lane_name.startswith('L')) \
                         or (direction == 'right' and lane_name.startswith('R')):
                     # 道路の進行方向とレーンの進行方向が同じ場合
@@ -85,7 +173,7 @@ class NineBlockAnalyzer(BaseAnalyzer):
             data_dict[road_name] = road_dict
         return data_dict
 
-    def get_nine_block_data(self, measurement, road_data_dict, vehicles):
+    def get_nine_block_data(self, measurement: string, road_data_dict: Road_Dict, vehicles: List[str]):
         vehicle_dict = {}
         for vehicle in vehicles:
             if vehicle == "ego":
@@ -249,25 +337,25 @@ class NineBlockAnalyzer(BaseAnalyzer):
                 vehicle_rdf_data_list.append(direction_data)
         return rdf_data
 
-    def execute(self, imported_data_id=-1):
+    def execute(self, imported_data_id: int=-1):
         """
         各車両のレーンキープ、レーンチェンジを解析
         :param imported_data_id:
         :return:
         """
         # 走行データ管理DBからレコードを取得
-        imported_data = self.get_imported_data(imported_data_id)
-        measurement = imported_data.measurement
-        map_id = imported_data.mapid
+        imported_data: ImportedData = self.get_imported_data(imported_data_id)
+        measurement: string = imported_data.measurement
+        map_id: int = imported_data.mapid
 
         # waypointsから対象のwaypointを取得
-        waypoint_data = self.mongo_accessor.get_waypoints_from_map_id(map_id)
+        waypoint_data: WaypointData = self.mongo_accessor.get_waypoints_from_map_id(map_id)
 
         # 各RoadのWaypointのIndex最大値, Successor, Predecessorを取得
-        road_data_dict = self.get_road_info(waypoint_data)
+        road_data_dict: Data_Dict = self.get_road_info(waypoint_data)
 
         # 車両取得
-        vehicles = self.influxdb_accessor.get_vehicles(measurement)
+        vehicles: List[str] = self.influxdb_accessor.get_vehicles(measurement)
 
         # 車両ごとの走行Lane情報を取得
         time_series_vehicle_dict = self.get_nine_block_data(measurement, road_data_dict, vehicles)
@@ -280,6 +368,7 @@ class NineBlockAnalyzer(BaseAnalyzer):
         # RDFへ書き込み
         creator = RdfGraphCreator("garden_ts", measurement)
         creator.build_direction(rdf_data, "ego")
+
 
 
 def execute(**kwargs):
