@@ -1,9 +1,13 @@
+import string
+from typing import List
+
 from base_analayzer import BaseAnalyzer
 from datas.lane_data import SceneData
 from datas.scenario_schema import GRAPH_ID
-
-from utils.rdf_graph_accessor import RdfGraphAccessor, PRIFIX_STR
+from utils.rdf_graph_accessor import PRIFIX_STR, RdfGraphAccessor
 from utils.rdf_graph_creator import RdfGraphCreator
+
+from Zipc_airflow.src.analyzer.my_dataclass import Measurement
 
 SAKURA32_CONDITIONS = {
     'SAKURA32-No1': ['Mainroadway', 'LaneKeep', 'Cutin'],
@@ -84,7 +88,7 @@ ego_behavior_query = """
     }
 
     FILTER(?egoBehaviorStart <= ?geoEnd && ?egoBehaviorEnd >= ?geoStart)
-    
+
   }
 
 """ % ('%s', GRAPH_ID, '%s', '%s')
@@ -111,18 +115,18 @@ obs_behavior_query = """
     }
 
     FILTER(?actor != "ego" && ?egoStart <= ?obsBehaviorEnd && ?egoEnd >= ?obsBehaviorStart)
-    
+
   }
 
 """ % ('%s', GRAPH_ID, '%s', '%s')
 
 
 class Sakura32Analyzer(BaseAnalyzer):
-    def create_sparql_str(self, measurement, sakura32_tag_name):
-        conditions = SAKURA32_CONDITIONS[sakura32_tag_name]
-        sparql0 = roadgeometry_query % (measurement, conditions[0])
-        sparql1 = ego_behavior_query % (sparql0, measurement, conditions[1])
-        sparql_str = obs_behavior_query % (sparql1, measurement, conditions[2])
+    def create_sparql_str(self, measurement: Measurement, sakura32_tag_name: string) -> string:
+        conditions: List[str] = SAKURA32_CONDITIONS[sakura32_tag_name]
+        sparql0: string = roadgeometry_query % (measurement, conditions[0])
+        sparql1: string = ego_behavior_query % (sparql0, measurement, conditions[1])
+        sparql_str: string = obs_behavior_query % (sparql1, measurement, conditions[2])
 
         return f'{PRIFIX_STR}{sparql_str}'
 
@@ -134,13 +138,13 @@ class Sakura32Analyzer(BaseAnalyzer):
         """
         # 走行データ管理DBからレコードを取得
         imported_data = self.get_imported_data(imported_data_id)
-        measurement = imported_data.measurement
+        measurement: Measurement = imported_data.measurement
 
         # SAKURA32シナリオそれぞれの条件を満たすRDF情報を取得
-        data_list = []
-        for condition_name in SAKURA32_CONDITIONS:
+        data_list: List[SceneData] = []
+        for condition_name in SAKURA32_CONDITIONS: # string, sakura32_tag_name
             print('Getting {} Data ...'.format(condition_name))
-            query_str = self.create_sparql_str(measurement, condition_name)
+            query_str: string = self.create_sparql_str(measurement, condition_name)
             result = RdfGraphAccessor.get_rdf_info(query_str)
             for data in result:
                 data_list.append(
@@ -148,7 +152,7 @@ class Sakura32Analyzer(BaseAnalyzer):
 
         # RDFへ書き込み
         print('Writing RDF ...')
-        creator = RdfGraphCreator("garden_ts", measurement)
+        creator: RdfGraphCreator = RdfGraphCreator("garden_ts", measurement)
         creator.build_tag(data_list)
         print('Done')
 
