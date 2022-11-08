@@ -1,6 +1,7 @@
-from SPARQLWrapper import SPARQLWrapper, JSON
-from utils.constants import *
+import string
 
+from SPARQLWrapper import JSON, SPARQLWrapper
+from utils.constants import *
 
 ENDPOINT = f'{JF_HOST}:{JF_PORT}/{JF_DATASET}/sparql'
 GRAPH_ID = "http://www.zipc.com/model/scenario"
@@ -16,16 +17,17 @@ base <http://www.zipc.com/model/scenario>
 """
 
 
+
 class RdfGraphAccessor(object):
 
   @staticmethod
-  def get_rdf_info(query):
+  def get_rdf_info(query: string):
     """
 
     :param _id:
     :return:
     """
-    sparql = SPARQLWrapper(ENDPOINT)
+    sparql: SPARQLWrapper = SPARQLWrapper(ENDPOINT)
 
     sparql.setQuery(query)
     sparql.setReturnFormat(JSON)
@@ -38,10 +40,10 @@ class RdfGraphAccessor(object):
         record[key] = item[key]['value']
       formatted.append(record)
     return formatted
-  
+
 
     # print('---------------------------')
-  
+
     # for result in results["results"]["bindings"]:
     #     print('%s: %s' % (result["label"]["xml:lang"], result["label"]["value"]))
     # print(results)
@@ -56,10 +58,10 @@ class RdfGraphAccessor(object):
     sparql.setQuery(create_sparql_str(measurement, sukura32_name))
     sparql.setReturnFormat(JSON)
     results = sparql.query().convert()
-  
+
 
     # print('---------------------------')
-  
+
     #     print('%s: %s' % (result["label"]["xml:lang"], result["label"]["value"]))
     # print(results)
     return results
