@@ -1,10 +1,13 @@
-from rdflib import Graph, Literal, RDF, URIRef, RDFS, OWL
-from rdflib.term import Node
-from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
+from typing import List
 
+from datas.scenario_schema import BASE, GRAPH_ID, SCENARIO, ScenarioSchema
 from datas.scene_type import *
-from datas.scenario_schema import ScenarioSchema, GRAPH_ID, BASE, SCENARIO
+from rdflib import OWL, RDF, RDFS, Graph, Literal, URIRef
+from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
+from rdflib.term import Node
 from utils.constants import *
+
+from Zipc_airflow.src.analyzer.datas.lane_data import SceneData
 
 
 class RdfGraphCreator(object):
@@ -193,7 +196,7 @@ class RdfGraphCreator(object):
 
         self.commit()
 
-    def build_tag(self, data_list):
+    def build_tag(self, data_list: List[SceneData]):
         raw_data = self.create_raw_data()
 
         for data in data_list:
