@@ -2,6 +2,8 @@ from bson import ObjectId
 from pymongo import MongoClient
 from utils.constants import *
 
+from Zipc_airflow.src.analyzer.my_dataclass import WaypointData
+
 
 class MongoDBAccessor(object):
 
@@ -46,7 +48,7 @@ class MongoDBAccessor(object):
         collection = self.get_collections('waypoints')
         return collection.find(filter=_filter)
 
-    def get_waypoints_from_map_id(self, gid):
+    def get_waypoints_from_map_id(self, gid: str) -> WaypointData:
         """
 
         :param gid:
@@ -57,6 +59,6 @@ class MongoDBAccessor(object):
         #gid = map_data['gid']
 
         # waypointsから対象のwaypointを取得
-        waypoint_data = self.db.waypoints.find_one({'gid': gid})
+        waypoint_data: WaypointData = self.db.waypoints.find_one({'gid': gid})
 
         return waypoint_data
