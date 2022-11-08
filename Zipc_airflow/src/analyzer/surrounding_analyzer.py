@@ -1,8 +1,17 @@
+import string
+from dataclasses import dataclass
+from enum import Enum
+from typing import List, NewType, Optional, Tuple, TypedDict, Union
+
 from base_analayzer import BaseAnalyzer
 from datas.lane_data import SceneData
 from datas.surrounding_vehicle_motion_type import SurroundingVehicleMotionType
-from utils.rdf_graph_accessor import RdfGraphAccessor,  PRIFIX_STR, GRAPH_ID
+from utils.rdf_graph_accessor import GRAPH_ID, PRIFIX_STR, RdfGraphAccessor
 from utils.rdf_graph_creator import RdfGraphCreator
+
+from Zipc_airflow.src.analyzer.my_dataclass import (ImportedData, Mapid,
+                                                    Measurement, Vehicle,
+                                                    Vehicles, WaypointData)
 
 CONDITIONS = {
     'FrontCutin' : [['RightFront', 'LeftFront'], ['Front']],
@@ -13,7 +22,7 @@ CONDITIONS = {
     'Sync'  : ['Right', 'Left']
 }
 
-obs_behavior_query = '''
+obs_behavior_query: string = '''
 SELECT ?behaviorActor ?behaviorStart ?behaviorEnd {
     GRAPH <%s> {
         ?scenario a zss:RawData;
@@ -125,24 +134,24 @@ SELECT ?actorId (?behaviorStart AS ?start) (?behaviorEnd AS ?end) {
 
 class SurroundingAnalyzer(BaseAnalyzer):
 
-    def create_filter(self, condition_array):
-        new_array = []
+    def create_filter(self, condition_array: List[str]) -> string:
+        new_array: List[str] = []
         for item in condition_array:
             new_array.append(f'?value = "{item}"')
         return ' || '.join(new_array)
 
-    def create_query(self, measurement, condition_name):
+    def create_query(self, measurement: Measurement, condition_name: CONDITIONS) -> string:
         if condition_name in ['FrontCutin', 'BackCutin', 'Cutout']:
-            query0 = obs_behavior_query % (measurement, 'LaneChange')
-            query1 = start_position_query % (query0, measurement, self.create_filter(CONDITIONS[condition_name][0]))
-            query_str = end_position_query % (query1, measurement, self.create_filter(CONDITIONS[condition_name][1]))
+            query0: string = obs_behavior_query % (measurement, 'LaneChange')
+            query1: string = start_position_query % (query0, measurement, self.create_filter(CONDITIONS[condition_name][0]))
+            query_str: str = end_position_query % (query1, measurement, self.create_filter(CONDITIONS[condition_name][1]))
 
         else:
-            filter_str = self.create_filter(CONDITIONS[condition_name])
-            query0 = obs_behavior_query % (measurement, condition_name)
-            query_str = position_query % (query0, measurement, filter_str)
+            filter_str: string = self.create_filter(CONDITIONS[condition_name])
+            query0: string = obs_behavior_query % (measurement, condition_name)
+            query_str: string = position_query % (query0, measurement, filter_str)
         return PRIFIX_STR + query_str
-    
+
     def create_rdf_data(self, query_results, svm_type):
         data_dict = {}
         for result in query_results:
@@ -152,7 +161,7 @@ class SurroundingAnalyzer(BaseAnalyzer):
             data_dict[vehicle].append(SceneData(result['start'], result['end'], svm_type))
         return data_dict
 
-    def merge(self, data_dict1, data_dict2):
+    def merge(self, data_dict1, data_dict2) -> dict:
         for key in data_dict2:
             if key not in data_dict1:
                 data_dict1[key] = data_dict2[key]
@@ -167,18 +176,18 @@ class SurroundingAnalyzer(BaseAnalyzer):
         :return:
         """
         # 走行データ管理DBからレコードを取得
-        imported_data = self.get_imported_data(imported_data_id)
-        measurement = imported_data.measurement
+        imported_data: ImportedData = self.get_imported_data(imported_data_id)
+        measurement: Measurement = imported_data.measurement
 
         data_dict = {}
-        for key in CONDITIONS:
-            if key in ['FrontCutin', 'BackCutin']:
-                svm_type = SurroundingVehicleMotionType('SVMCutin')
-            else:
-                svm_type = SurroundingVehicleMotionType('SVM' + key)
+        for key in CONDITIONS: # 6種類 FrontCutin, BackCutin, Cutout, Accel, Decel, Sync
+            if key in ['FrontCutin', 'BackCutin']: # 6種類の内の２つがCutinへ統合される
+                svm_type: SurroundingVehicleMotionType = SurroundingVehicleMotionType('SVMCutin')  #5種類, CUTIN = "SVMCutin", CUTOUT = "SVMCutout", ACCEL = "SVMAccel", DECEL = "SVMDecel", SYNC = "SVMSync"
+            else: # key in ['Cutout', 'Accel', 'Decel', 'Sync']　# 6種類の内の4つ→一対一　
+                svm_type: SurroundingVehicleMotionType = SurroundingVehicleMotionType('SVM' + key)
 
             # SPARQLを作る
-            query = self.create_query(measurement, key)
+            query: string = self.create_query(measurement, key)
 
             # 条件を満たすRDF情報を取得
             print('Getting {} data ...'.format(key))
@@ -187,7 +196,7 @@ class SurroundingAnalyzer(BaseAnalyzer):
             # RDFへ書き込むためのDataを用意
                 data_dict = self.merge(data_dict, self.create_rdf_data(result, svm_type))
             # print(data_dict)
-        
+
         # RDFへ書き込み
         print('Writing RDF ...')
         creator = RdfGraphCreator("garden_ts", measurement)
