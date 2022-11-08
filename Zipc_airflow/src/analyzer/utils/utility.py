@@ -1,5 +1,5 @@
-import os
 import math
+import os
 
 
 def get_env(varname, default):
@@ -41,7 +41,7 @@ def circle(x, y, a, b, width):
     return None
 
 
-def calc_distance(x1, y1, x2, y2):
+def calc_distance(x1: float, y1: float, x2: float, y2: float) -> float:
     """
     2点間の距離を算出
     :param x1:
